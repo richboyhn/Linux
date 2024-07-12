@@ -39,21 +39,15 @@ setgid 65535
 setuid 65535
 stacksize 6291456 
 flush
-auth strong
+auth none
 
-users $(awk -F "/" 'BEGIN{ORS="";} {print $1 ":CL:" $2 " "}' ${WORKDATA})
-
-$(awk -F "/" '{print "auth strong\n" \
-"allow " $1 "\n" \
-"proxy -6 -n -a -p" $4 " -i" $3 " -e"$5"\n" \
+$(awk -F "/" '{print "proxy -6 -n -a -p" $4 " -i" $3 " -e"$5"\n" \
 "flush\n"}' ${WORKDATA})
 EOF
 }
 
 gen_proxy_file_for_user() {
-    cat >proxy.txt <<EOF
-$(awk -F "/" '{print $3 ":" $4 ":" $1 ":" $2 }' ${WORKDATA})
-EOF
+    awk -F "/" '{print $3 ":" $4 }' ${WORKDATA} > proxy.txt
 }
 
 gen_data() {
@@ -63,9 +57,7 @@ gen_data() {
 }
 
 gen_ifconfig() {
-    cat <<EOF
-$(awk -F "/" '{print "ifconfig eth0 inet6 add " $5 "/64"}' ${WORKDATA})
-EOF
+    awk -F "/" '{print "ifconfig eth0 inet6 add " $5 "/64"}' ${WORKDATA} > boot_ifconfig.sh
 }
 
 echo "installing apps"
@@ -86,8 +78,8 @@ FIRST_PORT=22000
 LAST_PORT=22700
 
 gen_data >$WORKDIR/data.txt
-gen_ifconfig >$WORKDIR/boot_ifconfig.sh
-chmod +x boot_*.sh /etc/rc.d/rc.local
+gen_ifconfig
+chmod +x boot_ifconfig.sh /etc/rc.d/rc.local
 
 gen_3proxy >/usr/local/etc/3proxy/3proxy.cfg
 
