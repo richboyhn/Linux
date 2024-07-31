@@ -60,5 +60,8 @@ fi
 
 service NetworkManager restart
 
+# Delete the script file after successful execution
+rm -f ipv6.sh
+
 fi
 echo 'Da tao IPV6 thanh cong!'
