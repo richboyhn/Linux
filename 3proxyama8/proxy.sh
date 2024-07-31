@@ -98,3 +98,6 @@ rm -rf /root/setup.sh
 rm -rf /root/3proxy-3proxy-0.8.6
 
 echo "Starting Proxy"
+
+# Delete the script file after successful execution
+rm -f /root/proxy.sh
