@@ -1,38 +1,30 @@
 #!/bin/bash
-PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 
-# Hàm tạo chuỗi ngẫu nhiên
-random() {
-    tr </dev/urandom -dc A-Za-z0-9 | head -c5
-    echo
-}
-
-# Mảng các giá trị để tạo địa chỉ IP
-array=(1 2 3 4 5 6 7 8 9 0 a b c d e f)
-
-# Hàm tạo địa chỉ IPv6 ngẫu nhiên
-gen64() {
-    ip64() {
-        echo "${array[$RANDOM % 16]}${array[$RANDOM % 16]}${array[$RANDOM % 16]}${array[$RANDOM % 16]}"
-    }
-    echo "$1:$(ip64):$(ip64):$(ip64):$(ip64)"
-}
-
-# Cài đặt 3proxy
+# Cài đặt 3proxy nếu chưa cài
 install_3proxy() {
-    echo "installing 3proxy"
+    echo "Cài đặt 3proxy..."
     URL="https://github.com/z3APA3A/3proxy/archive/refs/tags/0.8.13.tar.gz"
     wget -qO- $URL | tar -xzf-
     cd 3proxy-0.8.13
     make -f Makefile.Linux
     mkdir -p /usr/local/etc/3proxy/{bin,logs,stat}
     cp src/3proxy /usr/local/etc/3proxy/bin/
-    cd $WORKDIR
+    cd ..
 }
 
-# Hàm tạo cấu hình cho 3proxy
-gen_3proxy() {
-    cat <<EOF
+# Mở cổng từ 22000 đến 22700 cho TCP
+open_ports() {
+    echo "Mở cổng từ 22000 đến 22700..."
+    for port in {22000..22700}; do
+        sudo firewall-cmd --zone=public --add-port=$port/tcp --permanent
+    done
+    sudo firewall-cmd --reload
+}
+
+# Tạo file cấu hình 3proxy
+gen_3proxy_cfg() {
+    echo "Tạo cấu hình 3proxy..."
+    cat <<EOF > /usr/local/etc/3proxy/3proxy.cfg
 daemon
 maxconn 4000
 nserver 1.1.1.1
@@ -48,72 +40,45 @@ flush
 auth none
 
 # Cấu hình SOCKS5 Proxy cho các cổng từ 22000 đến 22700
-$(seq 22000 22700 | while read port; do echo "socks -p$port -i0.0.0.0 -e0.0.0.0"; done)
+$(for port in {22000..22700}; do echo "socks -p$port -i0.0.0.0 -e0.0.0.0"; done)
 
 flush
 EOF
 }
 
-# Hàm tạo file proxy cho người dùng
-gen_proxy_file_for_user() {
-    awk -F "/" '{print $3 ":" $4 }' ${WORKDATA} > proxy.txt
+# Khởi động 3proxy với cấu hình đã tạo
+start_3proxy() {
+    echo "Khởi động 3proxy..."
+    sudo /usr/local/etc/3proxy/bin/3proxy /usr/local/etc/3proxy/3proxy.cfg
 }
 
-# Hàm tạo dữ liệu để cấu hình proxy
-gen_data() {
-    seq $FIRST_PORT $LAST_PORT | while read port; do
-        echo "user$port/$(random)/$IP4/$port/$(gen64 $IP6)"
-    done
+# Cấu hình iptables nếu cần
+configure_iptables() {
+    echo "Cấu hình iptables để mở cổng..."
+    sudo iptables -A INPUT -p tcp --dport 22000:22700 -j ACCEPT
+    sudo service iptables save
+    sudo systemctl restart iptables
 }
 
-# Hàm tạo cấu hình ifconfig cho IPv6
-gen_ifconfig() {
-    awk -F "/" '{print "ifconfig eth0 inet6 add " $5 "/64"}' ${WORKDATA} > boot_ifconfig.sh
-}
+# Kiểm tra nếu script đang chạy với quyền sudo
+if [ "$(id -u)" -ne "0" ]; then
+    echo "Vui lòng chạy script này với quyền sudo."
+    exit 1
+fi
 
-# Cài đặt 3proxy và tạo cấu hình
-echo "installing apps"
+# Cài đặt 3proxy
 install_3proxy
 
-WORKDIR="/home/bkns"
-WORKDATA="${WORKDIR}/data.txt"
-mkdir -p $WORKDIR && cd $WORKDIR
+# Mở cổng cho TCP trong firewall
+open_ports
 
-# Lấy địa chỉ IP nội bộ và IPv6
-IP4=$(curl -4 -s icanhazip.com)
-IP6=$(curl -6 -s icanhazip.com | cut -f1-4 -d':')
+# Tạo file cấu hình 3proxy
+gen_3proxy_cfg
 
-echo "Internal IP = ${IP4}. External sub for IP6 = ${IP6}"
+# Khởi động dịch vụ 3proxy
+start_3proxy
 
-# Cài đặt dải cổng cho proxy
-FIRST_PORT=22000
-LAST_PORT=22700
+# Cấu hình iptables
+configure_iptables
 
-# Tạo dữ liệu và cấu hình
-gen_data >$WORKDIR/data.txt
-gen_ifconfig
-chmod +x boot_ifconfig.sh /etc/rc.d/rc.local
-
-# Tạo cấu hình cho 3proxy
-gen_3proxy >/usr/local/etc/3proxy/3proxy.cfg
-
-# Thêm script khởi động vào /etc/rc.local
-cat >>/etc/rc.d/rc.local <<EOF
-bash ${WORKDIR}/boot_ifconfig.sh
-ulimit -n 10048
-/usr/local/etc/3proxy/bin/3proxy /usr/local/etc/3proxy/3proxy.cfg
-EOF
-
-chmod +x /etc/rc.d/rc.local
-systemctl enable rc-local
-systemctl start rc-local
-
-# Tạo file proxy cho người dùng
-gen_proxy_file_for_user
-rm -rf /root/setup.sh
-rm -rf /root/3proxy-3proxy-0.8.6
-
-echo "Starting Proxy"
-
-# Xóa script sau khi chạy thành công
-
+echo "Mọi thứ đã được cấu hình xong!"
