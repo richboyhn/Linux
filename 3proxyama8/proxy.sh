@@ -54,6 +54,12 @@ configure_iptables() {
     sudo systemctl restart iptables
 }
 
+# Tạo file proxy.txt cho người dùng
+gen_proxy_file_for_user() {
+    awk -F "/" '{print $3 ":" $4 }' ${WORKDATA} > /home/bkns/proxy.txt
+    echo "File proxy.txt đã được tạo tại /home/bkns/proxy.txt"
+}
+
 # Kiểm tra nếu script đang chạy với quyền sudo
 if [ "$(id -u)" -ne "0" ]; then
     echo "Vui lòng chạy script này với quyền sudo."
@@ -73,5 +79,8 @@ start_3proxy
 
 # Cấu hình iptables
 configure_iptables
+
+# Tạo file proxy.txt cho người dùng
+gen_proxy_file_for_user
 
 echo "Mọi thứ đã được cấu hình xong!"
