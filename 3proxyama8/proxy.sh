@@ -13,13 +13,7 @@ install_3proxy() {
 }
 
 # Mở cổng từ 22000 đến 22700 cho TCP
-open_ports() {
-    echo "Mở cổng từ 22000 đến 22700..."
-    for port in {22000..22700}; do
-        sudo firewall-cmd --zone=public --add-port=$port/tcp --permanent
-    done
-    sudo firewall-cmd --reload
-}
+
 
 # Tạo file cấu hình 3proxy
 gen_3proxy_cfg() {
@@ -56,7 +50,8 @@ start_3proxy() {
 configure_iptables() {
     echo "Cấu hình iptables để mở cổng..."
     sudo iptables -A INPUT -p tcp --dport 22000:22700 -j ACCEPT
-
+    sudo service iptables save
+    sudo systemctl restart iptables
 }
 
 # Kiểm tra nếu script đang chạy với quyền sudo
@@ -68,8 +63,7 @@ fi
 # Cài đặt 3proxy
 install_3proxy
 
-# Mở cổng cho TCP trong firewall
-open_ports
+
 
 # Tạo file cấu hình 3proxy
 gen_3proxy_cfg
