@@ -116,4 +116,4 @@ rm -rf /root/3proxy-3proxy-0.8.6
 echo "Starting Proxy"
 
 # Xóa script sau khi chạy thành công
-rm -f /root/proxy.sh
+
