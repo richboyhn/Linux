@@ -54,12 +54,7 @@ flush
 EOF
 }
 
-# Tạo file proxy.txt cho người dùng
-gen_proxy_file_for_user() {
-    awk -F "/" '{print $3 ":" $4 }' ${WORKDATA} > /home/bkns/proxy.txt
-    echo "Đã tạo file proxy.txt tại /home/bkns/proxy.txt"
-    cat /home/bkns/proxy.txt
-}
+
 
 # Tạo dữ liệu proxy
 gen_data() {
@@ -109,8 +104,6 @@ chmod +x /etc/rc.d/rc.local
 systemctl enable rc-local
 systemctl start rc-local
 
-# Tạo file proxy.txt cho người dùng
-gen_proxy_file_for_user
 
 # Xóa các file không cần thiết
 rm -rf /root/setup.sh
