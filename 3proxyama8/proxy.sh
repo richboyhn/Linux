@@ -56,8 +56,7 @@ start_3proxy() {
 configure_iptables() {
     echo "Cấu hình iptables để mở cổng..."
     sudo iptables -A INPUT -p tcp --dport 22000:22700 -j ACCEPT
-    sudo service iptables save
-    sudo systemctl restart iptables
+
 }
 
 # Kiểm tra nếu script đang chạy với quyền sudo
