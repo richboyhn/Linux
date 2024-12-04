@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 
 # Hàm tạo chuỗi ngẫu nhiên
@@ -47,7 +47,7 @@ stacksize 6291456
 flush
 auth none
 
-# Cấu hình SOCKS Proxy cho các cổng từ 22000 đến 22700
+# Cấu hình SOCKS5 Proxy cho các cổng từ 22000 đến 22700
 $(seq 22000 22700 | while read port; do echo "socks -p$port -i0.0.0.0 -e0.0.0.0"; done)
 
 flush
