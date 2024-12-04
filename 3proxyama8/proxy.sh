@@ -50,11 +50,12 @@ auth none
 # Mở proxy SOCKS5 cho các cổng từ 22000 đến 22700
 $(seq 22000 22700 | while read port; do echo "socks -p$port -i0.0.0.0 -e0.0.0.0"; done)
 
+# Mở proxy HTTP cho các cổng từ 23000 đến 23700
+$(seq 23000 23700 | while read port; do echo "proxy -p$port -i0.0.0.0 -e0.0.0.0"; done)
+
 flush
 EOF
 }
-
-
 
 # Tạo dữ liệu proxy
 gen_data() {
@@ -104,12 +105,17 @@ chmod +x /etc/rc.d/rc.local
 systemctl enable rc-local
 systemctl start rc-local
 
+# Tạo file proxy.txt chứa danh sách proxy
+gen_proxy_file_for_user() {
+    awk -F "/" '{print $3 ":" $4 }' ${WORKDATA} > /home/bkns/proxy.txt
+}
+gen_proxy_file_for_user
 
 # Xóa các file không cần thiết
 rm -rf /root/setup.sh
 rm -rf /root/3proxy-3proxy-0.8.6
 
-echo "Proxy SOCKS5 đã được cấu hình và khởi động."
+echo "Proxy SOCKS5 và HTTP đã được cấu hình và khởi động."
 
 # Xóa script sau khi hoàn tất
 rm -f /root/proxy.sh
