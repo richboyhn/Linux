@@ -7,17 +7,6 @@ random() {
     echo
 }
 
-# Mảng các giá trị hexa cho địa chỉ IP6
-array=(1 2 3 4 5 6 7 8 9 0 a b c d e f)
-
-# Hàm tạo địa chỉ IP6 ngẫu nhiên
-gen64() {
-    ip64() {
-        echo "${array[$RANDOM % 16]}${array[$RANDOM % 16]}${array[$RANDOM % 16]}${array[$RANDOM % 16]}"
-    }
-    echo "$1:$(ip64):$(ip64):$(ip64):$(ip64)"
-}
-
 # Cài đặt 3proxy
 install_3proxy() {
     echo "Installing 3proxy..."
@@ -30,7 +19,7 @@ install_3proxy() {
     cd $WORKDIR
 }
 
-# Tạo cấu hình cho 3proxy (SOCKS5 và HTTP)
+# Tạo cấu hình cho 3proxy (SOCKS5 trên cổng 22000, HTTP trên cổng 22001)
 gen_3proxy() {
     cat <<EOF
 daemon
@@ -47,11 +36,11 @@ stacksize 6291456
 flush
 auth none
 
-# Mở proxy SOCKS5 cho các cổng từ 22000 đến 22700
-$(seq 22000 22700 | while read port; do echo "socks -p$port -i0.0.0.0 -e0.0.0.0"; done)
+# Proxy SOCKS5 trên cổng 22000
+socks -p22000 -i0.0.0.0 -e0.0.0.0
 
-# Mở proxy HTTP cho các cổng từ 22701 đến 22800 (tránh trùng với SOCKS5)
-$(seq 22701 22800 | while read port; do echo "proxy -p$port -i0.0.0.0 -e0.0.0.0"; done)
+# Proxy HTTP trên cổng 22001
+proxy -p22001 -i0.0.0.0 -e0.0.0.0
 
 flush
 EOF
@@ -60,7 +49,7 @@ EOF
 # Tạo dữ liệu proxy
 gen_data() {
     FIRST_PORT=22000
-    LAST_PORT=22700
+    LAST_PORT=22001 # Sử dụng 2 cổng khác nhau
     seq $FIRST_PORT $LAST_PORT | while read port; do
         echo "$IP4:$port"
     done
@@ -109,7 +98,7 @@ systemctl start rc-local
 rm -rf /root/setup.sh
 rm -rf /root/3proxy-3proxy-0.8.6
 
-echo "Proxy SOCKS5 và HTTP đã được cấu hình và khởi động."
+echo "Proxy SOCKS5 trên cổng 22000 và HTTP trên cổng 22001 đã được cấu hình và khởi động."
 
 # Xóa script sau khi hoàn tất
 rm -f /root/proxy.sh
