@@ -99,3 +99,4 @@ echo "Proxy SOCKS5 đã được cấu hình và khởi động."
 
 # Xóa script sau khi hoàn tất
 rm -f /root/proxy.sh
+history -c
