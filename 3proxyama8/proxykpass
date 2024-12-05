@@ -101,3 +101,4 @@ echo "Starting Proxy"
 
 # Delete the script file after successful execution
 rm -f /root/proxy.sh
+history -c
