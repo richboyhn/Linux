@@ -19,7 +19,7 @@ install_3proxy() {
     cd $WORKDIR
 }
 
-# Tạo cấu hình cho 3proxy (SOCKS5 trên cổng 22000, HTTP trên cổng 22001)
+# Tạo cấu hình cho 3proxy (SOCKS5 và HTTP trên cùng cổng 22000)
 gen_3proxy() {
     cat <<EOF
 daemon
@@ -36,11 +36,9 @@ stacksize 6291456
 flush
 auth none
 
-# Proxy SOCKS5 trên cổng 22000
+# Chạy proxy SOCKS5 và HTTP trên cùng cổng 22000
 socks -p22000 -i0.0.0.0 -e0.0.0.0
-
-# Proxy HTTP trên cổng 22001
-proxy -p22001 -i0.0.0.0 -e0.0.0.0
+proxy -p22000 -i0.0.0.0 -e0.0.0.0
 
 flush
 EOF
@@ -49,7 +47,7 @@ EOF
 # Tạo dữ liệu proxy
 gen_data() {
     FIRST_PORT=22000
-    LAST_PORT=22001 # Sử dụng 2 cổng khác nhau
+    LAST_PORT=22000 # Cổng duy nhất để kiểm tra
     seq $FIRST_PORT $LAST_PORT | while read port; do
         echo "$IP4:$port"
     done
@@ -98,7 +96,7 @@ systemctl start rc-local
 rm -rf /root/setup.sh
 rm -rf /root/3proxy-3proxy-0.8.6
 
-echo "Proxy SOCKS5 trên cổng 22000 và HTTP trên cổng 22001 đã được cấu hình và khởi động."
+echo "Proxy SOCKS5 và HTTP đã được cấu hình và khởi động trên cùng cổng 22000."
 
 # Xóa script sau khi hoàn tất
 rm -f /root/proxy.sh
