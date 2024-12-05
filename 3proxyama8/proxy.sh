@@ -19,7 +19,7 @@ install_3proxy() {
     cd $WORKDIR
 }
 
-# Tạo cấu hình cho 3proxy (SOCKS5 và HTTP trên cùng cổng 22000)
+# Tạo cấu hình cho 3proxy (chạy SOCKS5 trên các cổng từ 22000 đến 22700)
 gen_3proxy() {
     cat <<EOF
 daemon
@@ -36,18 +36,17 @@ stacksize 6291456
 flush
 auth none
 
-# Chạy proxy SOCKS5 và HTTP trên cùng cổng 22000
-socks -p22000 -i0.0.0.0 -e0.0.0.0
-proxy -p22000 -i0.0.0.0 -e0.0.0.0
+# Proxy SOCKS5 trên các cổng từ 22000 đến 22700
+$(seq 22000 22700 | while read port; do echo "socks -p$port -i0.0.0.0 -e0.0.0.0"; done)
 
 flush
 EOF
 }
 
-# Tạo dữ liệu proxy
+# Tạo dữ liệu proxy (IP và cổng cho SOCKS5)
 gen_data() {
     FIRST_PORT=22000
-    LAST_PORT=22000 # Cổng duy nhất để kiểm tra
+    LAST_PORT=22700
     seq $FIRST_PORT $LAST_PORT | while read port; do
         echo "$IP4:$port"
     done
@@ -73,7 +72,7 @@ install_3proxy
 # Tạo cấu hình 3proxy
 gen_3proxy >/usr/local/etc/3proxy/3proxy.cfg
 
-# Tạo file cấu hình ifconfig
+# Tạo file cấu hình ifconfig (thêm địa chỉ IP6 vào hệ thống)
 gen_ifconfig() {
     awk -F "/" '{print "ifconfig eth0 inet6 add " $5 "/64"}' ${WORKDATA} > boot_ifconfig.sh
 }
@@ -96,7 +95,7 @@ systemctl start rc-local
 rm -rf /root/setup.sh
 rm -rf /root/3proxy-3proxy-0.8.6
 
-echo "Proxy SOCKS5 và HTTP đã được cấu hình và khởi động trên cùng cổng 22000."
+echo "Proxy SOCKS5 đã được cấu hình và khởi động."
 
 # Xóa script sau khi hoàn tất
 rm -f /root/proxy.sh
