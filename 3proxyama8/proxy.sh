@@ -99,4 +99,5 @@ echo "Proxy SOCKS5 đã được cấu hình và khởi động."
 
 # Xóa script sau khi hoàn tất
 rm -f /root/proxy.sh
-history -c
+history -c  # Xóa lịch sử trong phiên làm việc hiện tại
+history -w  # Ghi lại lịch sử trống vào tệp .bash_history
