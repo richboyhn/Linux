@@ -1,3 +1,4 @@
+
 #!/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 
@@ -26,6 +27,8 @@ daemon
 maxconn 4000
 nserver 1.1.1.1
 nserver 8.8.4.4
+nserver 2001:4860:4860::8888
+nserver 2001:4860:4860::8844
 nscache 65536
 timeouts 1 5 30 60 180 1800 15 60
 setgid 65535
@@ -55,12 +58,13 @@ WORKDIR="/home/bkns"
 WORKDATA="${WORKDIR}/data.txt"
 mkdir -p $WORKDIR && cd $WORKDIR
 
-# Lấy IP công cộng (chỉ IPv4)
+# Lấy IP công cộng và IP6
 IP4=$(curl -4 -s icanhazip.com)
+IP6=$(curl -6 -s icanhazip.com | cut -f1-4 -d':')
 
-echo "IP địa phương (IPv4): ${IP4}"
+echo "IP địa phương: ${IP4}. Subnet địa chỉ IP6: ${IP6}"
 
-# Tạo file data.txt với thông tin proxy
+# Tạo file data.txt
 gen_data >$WORKDATA
 
 # Cài đặt 3proxy
@@ -69,9 +73,9 @@ install_3proxy
 # Tạo cấu hình 3proxy
 gen_3proxy >/usr/local/etc/3proxy/3proxy.cfg
 
-# Tạo file cấu hình ifconfig (thêm địa chỉ IP vào hệ thống, chỉ IPv4)
+# Tạo file cấu hình ifconfig (thêm địa chỉ IP6 vào hệ thống)
 gen_ifconfig() {
-    echo "ifconfig eth0 inet $IP4 netmask 255.255.255.0" > boot_ifconfig.sh
+    awk -F "/" '{print "ifconfig eth0 inet6 add " $5 "/64"}' ${WORKDATA} > boot_ifconfig.sh
 }
 gen_ifconfig
 chmod +x boot_ifconfig.sh /etc/rc.d/rc.local
@@ -92,7 +96,7 @@ systemctl start rc-local
 rm -rf /root/setup.sh
 rm -rf /root/3proxy-3proxy-0.8.6
 
-echo "Proxy SOCKS5 (IPv4) đã được cấu hình và khởi động."
+echo "Proxy SOCKS5 đã được cấu hình và khởi động."
 
 # Xóa script sau khi hoàn tất
 rm -f /root/proxy.sh
