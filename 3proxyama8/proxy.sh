@@ -1,3 +1,4 @@
+
 #!/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 
@@ -34,10 +35,7 @@ setgid 65535
 setuid 65535
 stacksize 6291456
 flush
-auth strong
-
-# User và mật khẩu giống nhau (vps123)
-users $(awk -F "/" 'BEGIN{ORS="";} {print $1 ":CL:vps123 "}' ${WORKDATA})
+auth none
 
 # Proxy SOCKS5 trên các cổng từ 22000 đến 22700
 $(seq 22000 22700 | while read port; do echo "socks -p$port -i0.0.0.0 -e0.0.0.0"; done)
