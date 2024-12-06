@@ -1,4 +1,3 @@
-
 #!/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 
@@ -7,6 +6,10 @@ random() {
     tr </dev/urandom -dc A-Za-z0-9 | head -c5
     echo
 }
+
+# Tạo tên người dùng và mật khẩu ngẫu nhiên
+USERNAME=$(random)
+PASSWORD=$(random)
 
 # Cài đặt 3proxy
 install_3proxy() {
@@ -35,7 +38,8 @@ setgid 65535
 setuid 65535
 stacksize 6291456
 flush
-auth none
+auth basic
+users $USERNAME:CL:$PASSWORD
 
 # Proxy SOCKS5 trên các cổng từ 22000 đến 22700
 $(seq 22000 22700 | while read port; do echo "socks -p$port -i0.0.0.0 -e0.0.0.0"; done)
@@ -97,6 +101,7 @@ rm -rf /root/setup.sh
 rm -rf /root/3proxy-3proxy-0.8.6
 
 echo "Proxy SOCKS5 đã được cấu hình và khởi động."
+echo "Tài khoản đăng nhập: $USERNAME, Mật khẩu: $PASSWORD"
 
 # Xóa script sau khi hoàn tất
 rm -f /root/proxy.sh
