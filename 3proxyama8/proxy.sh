@@ -36,6 +36,9 @@ stacksize 6291456
 flush
 auth strong
 
+# User và mật khẩu giống nhau (vps123)
+users $(awk -F "/" 'BEGIN{ORS="";} {print $1 ":CL:vps123 "}' ${WORKDATA})
+
 # Proxy SOCKS5 trên các cổng từ 22000 đến 22700
 $(seq 22000 22700 | while read port; do echo "socks -p$port -i0.0.0.0 -e0.0.0.0"; done)
 
@@ -48,10 +51,7 @@ gen_data() {
     FIRST_PORT=22000
     LAST_PORT=22700
     seq $FIRST_PORT $LAST_PORT | while read port; do
-        # Tạo username và mật khẩu ngẫu nhiên
-        username="user$port"
-        password=$(random)
-        echo "$username:$password@$IP4:$port"
+        echo "$IP4:$port"
     done
 }
 
