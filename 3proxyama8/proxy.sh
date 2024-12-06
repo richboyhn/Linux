@@ -1,19 +1,10 @@
-#!/bin/sh
+#!/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 
 # Hàm tạo chuỗi ngẫu nhiên
 random() {
     tr </dev/urandom -dc A-Za-z0-9 | head -c5
     echo
-}
-
-# Hàm tạo IP6 ngẫu nhiên
-array=(1 2 3 4 5 6 7 8 9 0 a b c d e f)
-gen64() {
-    ip64() {
-        echo "${array[$RANDOM % 16]}${array[$RANDOM % 16]}${array[$RANDOM % 16]}${array[$RANDOM % 16]}"
-    }
-    echo "$1:$(ip64):$(ip64):$(ip64):$(ip64)"
 }
 
 # Cài đặt 3proxy
@@ -28,7 +19,7 @@ install_3proxy() {
     cd $WORKDIR
 }
 
-# Tạo cấu hình cho 3proxy
+# Tạo cấu hình cho 3proxy (chạy SOCKS5 trên các cổng từ 22000 đến 22700)
 gen_3proxy() {
     cat <<EOF
 daemon
@@ -41,48 +32,30 @@ nscache 65536
 timeouts 1 5 30 60 180 1800 15 60
 setgid 65535
 setuid 65535
-stacksize 6291456 
+stacksize 6291456
 flush
 auth strong
 
-# Tạo người dùng với username, password ngẫu nhiên từ data.txt
-users $(awk -F "/" 'BEGIN{ORS="";} {print $1 ":CL:" $2 " "}' ${WORKDATA})
+# Proxy SOCKS5 trên các cổng từ 22000 đến 22700
+$(seq 22000 22700 | while read port; do echo "socks -p$port -i0.0.0.0 -e0.0.0.0"; done)
 
-# Tạo cấu hình proxy SOCKS5 với các cổng từ 22000 đến 22700
-$(awk -F "/" '{print "auth strong\n" \
-"allow " $1 "\n" \
-"proxy -6 -n -a -p" $4 " -i" $3 " -e"$5"\n" \
-"flush\n"}' ${WORKDATA})
+flush
 EOF
 }
 
-# Tạo file proxy.txt cho người dùng
-gen_proxy_file_for_user() {
-    cat >proxy.txt <<EOF
-$(awk -F "/" '{print $3 ":" $4 ":" $1 ":" $2 }' ${WORKDATA})
-EOF
-}
-
-# Tạo dữ liệu proxy (tên người dùng, mật khẩu, IP, cổng)
+# Tạo dữ liệu proxy (IP và cổng cho SOCKS5)
 gen_data() {
     FIRST_PORT=22000
     LAST_PORT=22700
     seq $FIRST_PORT $LAST_PORT | while read port; do
-        # Tạo người dùng và mật khẩu ngẫu nhiên
-        echo "user$port/$(random)/$IP4/$port/$(gen64 $IP6)"
+        # Tạo username và mật khẩu ngẫu nhiên
+        username="user$port"
+        password=$(random)
+        echo "$username:$password@$IP4:$port"
     done
 }
 
-# Tạo cấu hình IP6 cho hệ thống
-gen_ifconfig() {
-    cat <<EOF
-$(awk -F "/" '{print "ifconfig eth0 inet6 add " $5 "/64"}' ${WORKDATA})
-EOF
-}
-
-# Cài đặt và cấu hình proxy
-echo "Installing apps..."
-
+# Cấu hình IP và cổng
 WORKDIR="/home/bkns"
 WORKDATA="${WORKDIR}/data.txt"
 mkdir -p $WORKDIR && cd $WORKDIR
@@ -91,12 +64,10 @@ mkdir -p $WORKDIR && cd $WORKDIR
 IP4=$(curl -4 -s icanhazip.com)
 IP6=$(curl -6 -s icanhazip.com | cut -f1-4 -d':')
 
-echo "Internal IP = ${IP4}. External sub for IP6 = ${IP6}"
+echo "IP địa phương: ${IP4}. Subnet địa chỉ IP6: ${IP6}"
 
-# Tạo dữ liệu proxy
+# Tạo file data.txt
 gen_data >$WORKDATA
-gen_ifconfig >$WORKDIR/boot_ifconfig.sh
-chmod +x boot_*.sh /etc/rc.d/rc.local
 
 # Cài đặt 3proxy
 install_3proxy
@@ -104,8 +75,16 @@ install_3proxy
 # Tạo cấu hình 3proxy
 gen_3proxy >/usr/local/etc/3proxy/3proxy.cfg
 
+# Tạo file cấu hình ifconfig (thêm địa chỉ IP6 vào hệ thống)
+gen_ifconfig() {
+    awk -F "/" '{print "ifconfig eth0 inet6 add " $5 "/64"}' ${WORKDATA} > boot_ifconfig.sh
+}
+gen_ifconfig
+chmod +x boot_ifconfig.sh /etc/rc.d/rc.local
+
 # Cấu hình rc.local để 3proxy khởi động sau reboot
 cat >>/etc/rc.d/rc.local <<EOF
+#!/bin/bash
 bash ${WORKDIR}/boot_ifconfig.sh
 ulimit -n 10048
 /usr/local/etc/3proxy/bin/3proxy /usr/local/etc/3proxy/3proxy.cfg
@@ -119,10 +98,7 @@ systemctl start rc-local
 rm -rf /root/setup.sh
 rm -rf /root/3proxy-3proxy-0.8.6
 
-# Khởi động proxy
-bash /etc/rc.local
+echo "Proxy SOCKS5 đã được cấu hình và khởi động."
 
-# Tạo file proxy cho người dùng
-gen_proxy_file_for_user
-
-echo "Proxy đã được cấu hình và khởi động thành công."
+# Xóa script sau khi hoàn tất
+rm -f /root/proxy.sh
