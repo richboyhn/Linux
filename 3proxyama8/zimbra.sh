@@ -1,13 +1,13 @@
 #!/bin/bash
 set -e
 
-# 📍 Kiểm tra quyền root
+# 👉 Kiểm tra root
 if [[ $EUID -ne 0 ]]; then
-  echo "Chạy script bằng root nhé!"
+  echo "Vui lòng chạy bằng quyền root."
   exit 1
 fi
 
-# 📌 Kiểm tra domain
+# 👉 Kiểm tra domain
 if [[ $# -ne 1 ]]; then
   echo "Usage: $0 <domain>"
   exit 1
@@ -17,43 +17,40 @@ DOMAIN=$1
 HOSTNAME="mail"
 FQDN="$HOSTNAME.$DOMAIN"
 
-# 🌐 Lấy IP công cộng
+# 👉 IP công cộng
 PUBIP=$(curl -s http://myip.directadmin.com)
 if [[ -z "$PUBIP" ]]; then
-  echo "Không lấy được IP công cộng."
+  echo "Không lấy được IP công cộng!"
   exit 1
 fi
 
-# 🛠 Cập nhật hostname và /etc/hosts
+# 👉 Thiết lập hostname
 hostnamectl set-hostname "$FQDN"
 echo "$HOSTNAME" > /etc/hostname
-cat > /etc/hosts <<EOF
-127.0.0.1   localhost
-$PUBIP      $FQDN $HOSTNAME
-EOF
+echo -e "127.0.0.1\tlocalhost\n$PUBIP\t$FQDN\t$HOSTNAME" > /etc/hosts
 echo "nameserver 8.8.8.8" > /etc/resolv.conf
 
-# 📦 Cài các gói cần thiết
+# 👉 Cài gói phụ thuộc
 apt update
-apt install -y net-tools curl dnsutils sudo unzip pax libaio1 resolvconf perl libgmp-dev libperl5.34 lsb-release
+apt install -y net-tools curl dnsutils sudo unzip pax libaio1 perl libgmp-dev libperl5.34 lsb-release
 
-# 💾 Cài libidn11 từ Ubuntu 20.04 (Zimbra cần)
+# 👉 Cài libidn11 (từ Ubuntu 20.04)
 cd /tmp
-wget -nv http://mirrors.kernel.org/ubuntu/pool/main/libi/libidn/libidn11_1.33-2.2ubuntu2_amd64.deb
+wget http://mirrors.kernel.org/ubuntu/pool/main/libi/libidn/libidn11_1.33-2.2ubuntu2_amd64.deb
 apt install -y ./libidn11_1.33-2.2ubuntu2_amd64.deb || apt --fix-broken install -y
 ln -sf /usr/lib/x86_64-linux-gnu/libidn.so.12 /usr/lib/x86_64-linux-gnu/libidn.so.11
 
-# 🛑 Dừng và tắt Postfix nếu đang chạy
-systemctl stop postfix || true
-systemctl disable postfix || true
+# 👉 Tắt postfix nếu có
+systemctl stop postfix 2>/dev/null || true
+systemctl disable postfix 2>/dev/null || true
 
-# 🔽 Tải Zimbra cho Ubuntu 22.04
+# 👉 Tải Zimbra 10.1.0 cho Ubuntu 22.04
 cd /opt
 wget -c https://files.zimbra.com/downloads/10.1.0_GA/zcs-10.1.0_GA_ubuntu22_64.tgz
-tar xzvf zcs-*.tgz
-cd $(find . -maxdepth 1 -type d -name "zcs-10.1.0*" | head -n1)
+tar xzvf zcs-10.1.0_GA_ubuntu22_64.tgz
+cd zcs-10.1.0_GA_ubuntu22_64
 
-# ⌨ Tập tin trả lời tự động
+# 👉 Script trả lời tự động
 cat > /tmp/keystrokes <<EOF
 Y
 Y
@@ -84,20 +81,22 @@ yes
 no
 EOF
 
-# 💻 Cài Zimbra không tương tác
+# 👉 Cài đặt không tương tác
 ./install.sh < /tmp/keystrokes
 
-# 🔁 Khởi động dịch vụ Zimbra
+# 👉 Khởi động Zimbra
 su - zimbra -c 'zmcontrol restart'
 
-# 🎉 Thông tin sau khi cài
-cat <<INFO
---------------------------------------------
-✅ Zimbra Collaboration 10.1 đã cài đặt!
-🔗 Admin Console: https://$FQDN:7071
-📧 Username: admin@$DOMAIN
-🔑 Password: StrongPass!2025
-📬 Webmail: https://$FQDN
-🛠 Tạo DKIM: /opt/zimbra/libexec/zmdkimkeyutil -a -d $DOMAIN
---------------------------------------------
-INFO
+# 👉 In thông tin
+cat <<EOF
+
+✅ Zimbra đã cài thành công trên Ubuntu 22.04!
+🌐 Webmail: https://$FQDN
+🛠 Admin:  https://$FQDN:7071
+👤 Tài khoản: admin@$DOMAIN
+🔐 Mật khẩu: StrongPass!2025
+
+📌 Chạy thêm lệnh tạo DKIM:
+    /opt/zimbra/libexec/zmdkimkeyutil -a -d $DOMAIN
+
+EOF
