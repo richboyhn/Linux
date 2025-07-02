@@ -1,19 +1,14 @@
-
 #!/bin/bash
 
-# Zimbra 8.8.15 installer script for Ubuntu 22.04
-# Compatible with UBUNTU18_64 build
-
-# Exit on error
 set -e
 
-# Check root user
+# ➤ Kiểm tra root
 if [[ $EUID -ne 0 ]]; then
-  echo "Please run as root."
+  echo "Run as root"
   exit 1
 fi
 
-# Check input domain
+# ➤ Kiểm tra domain
 if [[ $# -ne 1 ]]; then
   echo "Usage: $0 <domain>"
   exit 1
@@ -22,37 +17,42 @@ fi
 DOMAIN=$1
 HOSTNAME="mail"
 FQDN="$HOSTNAME.$DOMAIN"
-PUBIP=$(curl -s http://myip.directadmin.com)
 
-if [[ -z $PUBIP ]]; then
-  echo "Unable to retrieve public IP. Check internet connectivity."
+# ➤ Lấy IP công cộng
+PUBIP=$(curl -s http://myip.directadmin.com)
+if [[ -z "$PUBIP" ]]; then
+  echo "Cannot get public IP"
   exit 1
 fi
 
-# Set hostname and hosts
+# ➤ Cấu hình hostname và hosts
 hostnamectl set-hostname "$FQDN"
 echo "$HOSTNAME" > /etc/hostname
-
 echo -e "127.0.0.1\tlocalhost\n$PUBIP\t$FQDN\t$HOSTNAME" > /etc/hosts
 echo "nameserver 8.8.8.8" > /etc/resolv.conf
 
-# Install required packages
+# ➤ Cài đặt phụ thuộc
 apt update
-apt install -y net-tools curl dnsutils sudo unzip pax libidn11 libaio1 resolvconf perl libgmp-dev unzip libperl5.34
+apt install -y net-tools curl dnsutils sudo unzip pax libaio1 resolvconf perl libgmp-dev libperl5.34 lsb-release
 
-# Disable and stop postfix if running
+# ➤ Cài libidn11 từ Ubuntu 20.04
+cd /tmp
+wget -nv http://mirrors.kernel.org/ubuntu/pool/main/libi/libidn/libidn11_1.33-2.2ubuntu2_amd64.deb
+apt install -y ./libidn11_1.33-2.2ubuntu2_amd64.deb || apt --fix-broken install -y
+ln -sf /usr/lib/x86_64-linux-gnu/libidn.so.12 /usr/lib/x86_64-linux-gnu/libidn.so.11
+
+# ➤ Tắt Postfix nếu có
 systemctl stop postfix || true
 systemctl disable postfix || true
 
-# Download and extract Zimbra
+# ➤ Tải và giải nén Zimbra OSE 10.1.7
 cd /opt
-wget -c https://files.zimbra.com/downloads/8.8.15_GA/zcs-8.8.15_GA_3869.UBUNTU18_64.20190918004220.tgz
-
+wget -c https://files.zimbra.com/downloads/10.1.7_GA/zcs-10.1.7_GA.tgz
 tar xzvf zcs-*.tgz
-cd zcs-*
+cd $(find . -maxdepth 1 -type d -name "zcs-10.1.7*" | head -n1)
 
-# Prepare keystrokes input
-cat <<EOF > /tmp/installZimbra-keystrokes
+# ➤ Tự động trả lời installer
+cat <<EOF > /tmp/keystrokes
 Y
 Y
 Y
@@ -73,7 +73,7 @@ Yes
 $DOMAIN
 6
 4
-123456abcA
+YourStrongPass123
 r
 a
 yes
@@ -82,20 +82,20 @@ yes
 no
 EOF
 
-# Install Zimbra silently
-./install.sh < /tmp/installZimbra-keystrokes
+# ➤ Chạy installer
+./install.sh < /tmp/keystrokes
 
-# Restart Zimbra
+# ➤ Khởi động lại Zimbra
 su - zimbra -c 'zmcontrol restart'
 
-# Output
+# ➤ Thông tin kết thúc
 cat <<INFO
----------------------------------------------------
-Zimbra installation completed!
-Admin Console: https://$FQDN:7071
-Username: admin@$DOMAIN
-Password: 123456abcA
-Webmail: https://$FQDN
-To setup DKIM: /opt/zimbra/libexec/zmdkimkeyutil -a -d $DOMAIN
----------------------------------------------------
+--------------------------------
+✅ Zimbra 10.1.7 đã cài đặt xong!
+🔗 Admin Console: https://$FQDN:7071
+📧 Username: admin@$DOMAIN
+🔑 Password: YourStrongPass123
+📬 Webmail: https://$FQDN
+🛠 Tạo DKIM: /opt/zimbra/libexec/zmdkimkeyutil -a -d $DOMAIN
+--------------------------------
 INFO
