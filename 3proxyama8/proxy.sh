@@ -11,14 +11,14 @@ gen64() {
 }
 
 install_3proxy() {
-    echo "Installing 3proxy..."
+    echo "installing 3proxy"
     URL="https://github.com/z3APA3A/3proxy/archive/refs/tags/0.8.13.tar.gz"
     wget -qO- $URL | tar -xzf-
     cd 3proxy-0.8.13
     make -f Makefile.Linux
     mkdir -p /usr/local/etc/3proxy/{bin,logs,stat}
     cp src/3proxy /usr/local/etc/3proxy/bin/
-    cd /
+    cd $WORKDIR
 }
 
 gen_3proxy() {
@@ -63,12 +63,11 @@ $(awk -F "/" '{print "ifconfig eth0 inet6 add " $5 "/64"}' ${WORKDATA})
 EOF
 }
 
-echo "Installing required apps..."
-yum install -y gcc make wget curl net-tools
+echo "installing apps"
 
 install_3proxy
 
-echo "Working folder = /home/bkns"
+echo "working folder = /home/bkns"
 WORKDIR="/home/bkns"
 WORKDATA="${WORKDIR}/data.txt"
 mkdir -p $WORKDIR && cd $WORKDIR
@@ -76,8 +75,7 @@ mkdir -p $WORKDIR && cd $WORKDIR
 IP4=$(curl -4 -s icanhazip.com)
 IP6=$(curl -6 -s icanhazip.com | cut -f1-4 -d':')
 
-echo "IPv4 = ${IP4}"
-echo "IPv6 prefix = ${IP6}"
+echo "Internal IP = ${IP4}. External sub for IP6 = ${IP6}"
 
 FIRST_PORT=22000
 LAST_PORT=22700
@@ -88,8 +86,7 @@ chmod +x $WORKDIR/boot_ifconfig.sh
 
 gen_3proxy >/usr/local/etc/3proxy/3proxy.cfg
 
-cat >/etc/rc.d/rc.local <<EOF
-#!/bin/bash
+cat >>/etc/rc.d/rc.local <<EOF
 bash ${WORKDIR}/boot_ifconfig.sh
 ulimit -n 10048
 /usr/local/etc/3proxy/bin/3proxy /usr/local/etc/3proxy/3proxy.cfg
@@ -97,14 +94,10 @@ EOF
 
 chmod +x /etc/rc.d/rc.local
 systemctl enable rc-local
-systemctl restart rc-local
+systemctl start rc-local
 
-bash /etc/rc.d/rc.local
+bash /etc/rc.local
 
 gen_proxy_file_for_user
 
-echo "===================================="
-echo " Proxy started - NO AUTH"
-echo " Proxy list saved in: /home/bkns/proxy.txt"
-echo " Format: IP:PORT"
-echo "===================================="
+echo "Starting Proxy"
