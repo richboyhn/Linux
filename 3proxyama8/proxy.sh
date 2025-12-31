@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 
 array=(1 2 3 4 5 6 7 8 9 0 a b c d e f)
@@ -11,24 +11,18 @@ gen64() {
 }
 
 install_3proxy() {
-    echo "Installing build tools..."
-    dnf install -y gcc make wget curl net-tools
-
-    echo "Downloading 3proxy..."
-    cd /root || exit
-    wget -q https://github.com/z3APA3A/3proxy/archive/refs/tags/0.8.13.tar.gz
-    tar -xzf 0.8.13.tar.gz
-    cd 3proxy-0.8.13 || exit
-
-    echo "Building 3proxy..."
+    echo "Installing 3proxy..."
+    URL="https://github.com/z3APA3A/3proxy/archive/refs/tags/0.8.13.tar.gz"
+    wget -qO- $URL | tar -xzf-
+    cd 3proxy-0.8.13
     make -f Makefile.Linux
-
     mkdir -p /usr/local/etc/3proxy/{bin,logs,stat}
     cp src/3proxy /usr/local/etc/3proxy/bin/
+    cd /
 }
 
 gen_3proxy() {
-cat <<EOF
+    cat <<EOF
 daemon
 maxconn 4000
 nserver 1.1.1.1
@@ -52,7 +46,9 @@ EOF
 }
 
 gen_proxy_file_for_user() {
-    awk -F "/" '{print $3 ":" $4}' ${WORKDATA} > proxy.txt
+    cat >proxy.txt <<EOF
+$(awk -F "/" '{print $3 ":" $4 }' ${WORKDATA})
+EOF
 }
 
 gen_data() {
@@ -62,39 +58,36 @@ gen_data() {
 }
 
 gen_ifconfig() {
-    awk -F "/" '{print "ip -6 addr add " $5 "/64 dev eth0"}' ${WORKDATA}
+    cat <<EOF
+$(awk -F "/" '{print "ifconfig eth0 inet6 add " $5 "/64"}' ${WORKDATA})
+EOF
 }
 
-echo "==== START INSTALL ===="
+echo "Installing required apps..."
+yum install -y gcc make wget curl net-tools
 
 install_3proxy
 
+echo "Working folder = /home/bkns"
 WORKDIR="/home/bkns"
 WORKDATA="${WORKDIR}/data.txt"
-mkdir -p $WORKDIR
-cd $WORKDIR || exit
+mkdir -p $WORKDIR && cd $WORKDIR
 
 IP4=$(curl -4 -s icanhazip.com)
-IP6=$(curl -6 -s icanhazip.com | cut -f1-4 -d:)
+IP6=$(curl -6 -s icanhazip.com | cut -f1-4 -d':')
 
-echo "IPv4 = $IP4"
-echo "IPv6 prefix = $IP6"
-
-if [ -z "$IP6" ]; then
-    echo "❌ VPS KHÔNG CÓ IPV6 – SCRIPT DỪNG"
-    exit 1
-fi
+echo "IPv4 = ${IP4}"
+echo "IPv6 prefix = ${IP6}"
 
 FIRST_PORT=22000
 LAST_PORT=22700
 
-gen_data > $WORKDATA
-gen_ifconfig > boot_ifconfig.sh
-chmod +x boot_ifconfig.sh
+gen_data >$WORKDATA
+gen_ifconfig >$WORKDIR/boot_ifconfig.sh
+chmod +x $WORKDIR/boot_ifconfig.sh
 
-gen_3proxy > /usr/local/etc/3proxy/3proxy.cfg
+gen_3proxy >/usr/local/etc/3proxy/3proxy.cfg
 
-# Create rc.local
 cat >/etc/rc.d/rc.local <<EOF
 #!/bin/bash
 bash ${WORKDIR}/boot_ifconfig.sh
@@ -103,17 +96,15 @@ ulimit -n 10048
 EOF
 
 chmod +x /etc/rc.d/rc.local
-
-# Enable rc-local for AlmaLinux 8
-systemctl enable rc-local.service
-systemctl restart rc-local.service
+systemctl enable rc-local
+systemctl restart rc-local
 
 bash /etc/rc.d/rc.local
 
 gen_proxy_file_for_user
 
 echo "===================================="
-echo " 3PROXY IPV6 STARTED (NO AUTH)"
-echo " Proxy list: /home/bkns/proxy.txt"
+echo " Proxy started - NO AUTH"
+echo " Proxy list saved in: /home/bkns/proxy.txt"
 echo " Format: IP:PORT"
 echo "===================================="
